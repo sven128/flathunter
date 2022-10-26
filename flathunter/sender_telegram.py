@@ -4,6 +4,8 @@ import typing
 from typing import Union
 
 import requests
+import re
+import time
 
 from flathunter.abstract_notifier import Notifier
 from flathunter.abstract_processor import Processor
@@ -147,6 +149,12 @@ class SenderTelegram(Processor, Notifier):
                 raise BotBlockedException(f"User {chat_id} blocked the bot")
             if "user is deactivated" in data.get("description", ""):
                 raise UserDeactivatedException(f"User {chat_id} has been deactivated")
+        elif response.status_code == 429:
+            sleep_secs = int(
+                re.sub("too many requests: retry after ", "", data.get("description", "30").lower()).strip()
+            )
+            logger.info(f"Telegram bot is waiting for {sleep_secs} seconds.")
+            time.sleep(sleep_secs)
 
     def __get_images(self, expose: typing.Dict) -> typing.List[str]:
         return expose.get("images", [])
@@ -158,6 +166,8 @@ class SenderTelegram(Processor, Notifier):
         :return: str
         """
 
+        sqm_price_times_ref_sqm_price_percent = '{:.1%}'.format(expose.get('sqm_price_times_ref_sqm_price', 'N/A'))
+
         return self.config.message_format().format(
             title=expose.get('title', 'N/A'),
             rooms=expose.get('rooms', 'N/A'),
@@ -165,5 +175,9 @@ class SenderTelegram(Processor, Notifier):
             price=expose.get('price', 'N/A'),
             url=expose.get('url', 'N/A'),
             address=expose.get('address', 'N/A'),
-            durations=expose.get('durations', 'N/A')
+            durations=expose.get('durations', 'N/A'),
+            ref_address=expose.get('ref_address', 'N/A'),
+            sqm_price=expose.get('sqm_price', 'N/A'),
+            sqm_price_ref_address=expose.get('sqm_price_ref_address', 'N/A'),
+            sqm_price_times_ref_sqm_price_percent=sqm_price_times_ref_sqm_price_percent,
         ).strip()

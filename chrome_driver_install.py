@@ -10,4 +10,4 @@ from flathunter.logging import wdm_logger
 os.environ['WDM_LOCAL'] = '1'
 wdm_logger.setLevel(logging.INFO)
 
-ChromeDriverManager().install()
+ChromeDriverManager(version='107').install()

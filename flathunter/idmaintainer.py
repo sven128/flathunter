@@ -55,8 +55,23 @@ class IdMaintainer:
                 cur = self.threadlocal.connection.cursor()
                 cur.execute('CREATE TABLE IF NOT EXISTS processed (ID INTEGER)')
                 cur.execute('CREATE TABLE IF NOT EXISTS executions (timestamp timestamp)')
-                cur.execute('CREATE TABLE IF NOT EXISTS exposes (id INTEGER, created TIMESTAMP, \
-                                    crawler STRING, details BLOB, PRIMARY KEY (id, crawler))')
+                cur.execute('''CREATE TABLE IF NOT EXISTS exposes (
+                    id INTEGER, 
+                    created TIMESTAMP, 
+                    crawler STRING, 
+                    title STRING, 
+                    url STRING, 
+                    image STRING, 
+                    price_float REAL, 
+                    size_float REAL,
+                    address STRING, 
+                    sqm_price REAL, 
+                    sqm_price_ref_address STRING, 
+                    ref_address STRING,
+                    sqm_price_times_ref_sqm_price REAL, 
+                    details BLOB, 
+                    PRIMARY KEY (id, crawler)
+                    )''')
                 cur.execute('CREATE TABLE IF NOT EXISTS users \
                                     (id INTEGER PRIMARY KEY, settings BLOB)')
                 self.threadlocal.connection.commit()
@@ -83,10 +98,39 @@ class IdMaintainer:
     def save_expose(self, expose):
         """Saves an expose to a database"""
         cur = self.get_connection().cursor()
-        cur.execute('INSERT OR REPLACE INTO exposes(id, created, crawler, details) \
-                     VALUES (?, ?, ?, ?)',
-                    (int(expose['id']), datetime.datetime.now(),
-                     expose['crawler'], json.dumps(expose)))
+        cur.execute('''INSERT OR REPLACE INTO exposes(
+                    id,
+                    created,
+                    crawler,
+                    title,
+                    url, 
+                    image, 
+                    price_float, 
+                    size_float,
+                    address, 
+                    sqm_price, 
+                    sqm_price_ref_address, 
+                    ref_address,
+                    sqm_price_times_ref_sqm_price,
+                    details
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                    (
+                        int(expose['id']),
+                        datetime.datetime.now(),
+                        expose['crawler'],
+                        expose['title'],
+                        expose['url'],
+                        expose['image'],
+                        expose['price_float'],
+                        expose['size_float'],
+                        expose['address'],
+                        expose['sqm_price'],
+                        expose['sqm_price_ref_address'],
+                        expose['ref_address'],
+                        expose['sqm_price_times_ref_sqm_price'],
+                        json.dumps(expose))
+                    )
         self.get_connection().commit()
 
     def get_exposes_since(self, min_datetime):

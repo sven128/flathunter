@@ -8,6 +8,8 @@ from selenium.common.exceptions import JavascriptException
 from flathunter.abstract_crawler import Crawler
 from flathunter.logging import logger
 
+from flathunter.crawl_reference_sqm_price import crawl_ref_sqm_price
+
 
 class CrawlImmobilienscout(Crawler):
     """Implementation of Crawler interface for ImmobilienScout"""
@@ -120,19 +122,34 @@ class CrawlImmobilienscout(Crawler):
             ]
 
         object_id: int = int(entry.get("@id", 0))
+
+        price = str(entry.get("price", {}).get("value", ''))
+        price_float = float(re.sub("[. €]", "", price).strip())
+        size = str(entry.get("livingSpace", ''))
+        size_float = float(re.sub(" m²", "", size).strip())
+        sqm_price = round(price_float/size_float)
+        address = entry.get("address", {}).get("description", {}).get("text", '')
+        sqm_price_ref_address, ref_address = crawl_ref_sqm_price(address)
+        sqm_price_times_ref_sqm_price = round(sqm_price / sqm_price_ref_address, 3)
+
         return {
             'id': object_id,
             'url': f"https://www.immobilienscout24.de/expose/{str(object_id)}",
             'image': images[0] if len(images) else self.FALLBACK_IMAGE_URL,
             'images': images,
             'title': entry.get("title", ''),
-            'address': entry.get("address", {}).get("description", {}).get("text", ''),
+            'address': address,
             'crawler': self.get_name(),
-            'price': str(entry.get("price", {}).get("value", '')),
-            'total_price':
-                str(entry.get('calculatedTotalRent', {}).get("totalRent", {}).get('value', '')),
-            'size': str(entry.get("livingSpace", '')),
-            'rooms': str(entry.get("numberOfRooms", ''))
+            'price': price,
+            'price_float': price_float,
+            'total_price': str(entry.get('calculatedTotalRent', {}).get("totalRent", {}).get('value', '')),
+            'size': size,
+            'size_float': size_float,
+            'rooms': str(entry.get("numberOfRooms", '')),
+            'sqm_price': sqm_price,
+            'sqm_price_ref_address': sqm_price_ref_address ,
+            'ref_address': ref_address ,
+            'sqm_price_times_ref_sqm_price': sqm_price_times_ref_sqm_price,
         }
 
     def get_page(self, search_url, driver=None, page_no=None):

@@ -6,6 +6,9 @@ import hashlib
 from flathunter.logging import logger
 from flathunter.abstract_crawler import Crawler
 
+from flathunter.crawl_reference_sqm_price import crawl_ref_sqm_price
+
+
 class CrawlImmowelt(Crawler):
     """Implementation of Crawler interface for ImmoWelt"""
 
@@ -92,16 +95,28 @@ class CrawlImmowelt(Crawler):
               hashlib.sha256(expose_ids[idx].get("id").encode('utf-8')).hexdigest(), 16
             ) % 10**16
 
+            price_float = float(re.sub("[. €]", "", price).strip())
+            size_float = float(re.sub(" m²", "", size).strip())
+            sqm_price = round(price_float / size_float)
+            sqm_price_ref_address, ref_address = crawl_ref_sqm_price(address) if address is not "" else (-1, "")
+            sqm_price_times_ref_sqm_price = round(sqm_price / sqm_price_ref_address, 3)
+
             details = {
                 'id': processed_id,
-                'image': image,
                 'url': url,
+                'image': image,
                 'title': title_el.text.strip(),
-                'rooms': rooms,
-                'price': price,
-                'size': size,
                 'address': address,
-                'crawler': self.get_name()
+                'crawler': self.get_name(),
+                'price': price,
+                'price_float': price_float,
+                'size': size,
+                'size_float': size_float,
+                'rooms': rooms,
+                'sqm_price': sqm_price,
+                'sqm_price_ref_address': sqm_price_ref_address,
+                'ref_address': ref_address,
+                'sqm_price_times_ref_sqm_price': sqm_price_times_ref_sqm_price,
             }
             entries.append(details)
 
