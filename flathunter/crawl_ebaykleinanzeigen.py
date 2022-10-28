@@ -2,6 +2,8 @@
 import re
 import datetime
 
+from flathunter.crawl_reference_sqm_price import crawl_ref_sqm_price
+from flathunter.idmaintainer import IdMaintainer
 from flathunter.logging import logger
 from flathunter.abstract_crawler import Crawler
 
@@ -32,6 +34,30 @@ class CrawlEbayKleinanzeigen(Crawler):
         """Applies a page number to a formatted search URL and fetches the exposes at that page"""
         return self.get_soup_from_url(search_url)
 
+    def is_processed(self, expose_id):
+        """Returns true if an expose has already been processed"""
+        logger.debug('is_processed(%d)', expose_id)
+        cur = IdMaintainer(db_name=f'{self.config.database_location()}/processed_ids.db').get_connection().cursor()
+        cur.execute('SELECT id FROM processed WHERE id = ?', (expose_id,))
+        row = cur.fetchone()
+        return row is not None
+
+    def qry_refs(self, expose_id) -> tuple:
+        """Returns tuple(ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price)"""
+        logger.debug(
+            'Get reference address, reference sqm price and sqm_price_times_ref_sqm_price from db for ', expose_id
+        )
+        cur = IdMaintainer(db_name=f'{self.config.database_location()}/processed_ids.db').get_connection().cursor()
+        cur.execute('''
+                    SELECT id, ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price  
+                    FROM exposes 
+                    WHERE id = ?
+                    ''',
+                    (expose_id,)
+                    )
+        row = cur.fetchone()
+        return row[1:]
+
     def get_expose_details(self, expose):
         soup = self.get_page(expose['url'])
         for detail in soup.find_all('li', {"class": "addetailslist--detail"}):
@@ -61,6 +87,7 @@ class CrawlEbayKleinanzeigen(Crawler):
             try:
                 price = expose_ids[idx].find(
                     class_="aditem-main--middle--price-shipping--price").text.strip()
+                price_float = float(re.sub("[ .€VB]", "", price).strip())
                 tags = expose_ids[idx].find_all(class_="simpletag tag-small")
                 address = expose_ids[idx].find("div", {"class": "aditem-main--top--left"})
                 image_element = expose_ids[idx].find("div", {"class": "galleryimage-element"})
@@ -83,18 +110,43 @@ class CrawlEbayKleinanzeigen(Crawler):
                 rooms = ""
             try:
                 size = tags[0].text
+                size_float = float(re.sub(" m²", "", size).strip().replace(",", "."))
+                sqm_price = round(price_float / size_float)
             except (IndexError, TypeError):
                 size = ""
+                size_float = -1
+                sqm_price = -1
+
+            # only crawl for reference sqm price if id has not yet been processed as the crawling takes a lot of time.
+            # due to only unprocessed ids being added to the database, setting dummy values does not replace the values
+            # that are already in the exposes db
+            id_str = expose_ids[idx].get("data-adid")
+            if self.is_processed(id_str):
+                (ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price) = self.qry_refs(id_str)
+                logger.info(f"Found reference information for id {id_str}. Skipping crawling for references.")
+            else:
+                sqm_price_ref_address, ref_address = crawl_ref_sqm_price(address) if address != "" else (-1, "")
+                if (sqm_price_ref_address, ref_address) == (-1, ""):
+                    sqm_price_times_ref_sqm_price = -1.0
+                else:
+                    sqm_price_times_ref_sqm_price = round(sqm_price / sqm_price_ref_address, 3)
+
             details = {
-                'id': int(expose_ids[idx].get("data-adid")),
+                'id': expose_ids[idx].get("data-adid"),
                 'image': image,
                 'url': ("https://www.ebay-kleinanzeigen.de" + title_el.get("href")),
                 'title': title_el.text.strip(),
                 'price': price,
+                'price_float': price_float,
                 'size': size,
+                'size_float': size_float,
                 'rooms': rooms,
                 'address': address,
-                'crawler': self.get_name()
+                'crawler': self.get_name(),
+                'sqm_price': sqm_price,
+                'sqm_price_ref_address': sqm_price_ref_address,
+                'ref_address': ref_address,
+                'sqm_price_times_ref_sqm_price': sqm_price_times_ref_sqm_price,
             }
             entries.append(details)
 
