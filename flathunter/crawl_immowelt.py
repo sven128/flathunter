@@ -3,6 +3,7 @@ import re
 import datetime
 import hashlib
 
+from flathunter.idmaintainer import IdMaintainer
 from flathunter.logging import logger
 from flathunter.abstract_crawler import Crawler
 
@@ -42,6 +43,30 @@ class CrawlImmowelt(Crawler):
                         break
         expose['from'] = date
         return expose
+
+    def is_processed(self, expose_id):
+        """Returns true if an expose has already been processed"""
+        logger.debug('is_processed(%d)', expose_id)
+        cur = IdMaintainer(db_name=f'{self.config.database_location()}/processed_ids.db').get_connection().cursor()
+        cur.execute('SELECT id FROM processed WHERE id = ?', (expose_id,))
+        row = cur.fetchone()
+        return row is not None
+
+    def qry_refs(self, expose_id) -> tuple:
+        """Returns tuple(ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price)"""
+        logger.debug(
+            'Get reference address, reference sqm price and sqm_price_times_ref_sqm_price from db for ', expose_id
+        )
+        cur = IdMaintainer(db_name=f'{self.config.database_location()}/processed_ids.db').get_connection().cursor()
+        cur.execute('''
+                    SELECT id, ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price  
+                    FROM exposes 
+                    WHERE id = ?
+                    ''',
+                    (expose_id,)
+                    )
+        row = cur.fetchone()
+        return row[1:]
 
     # pylint: disable=too-many-locals
     def extract_data(self, soup):
@@ -98,8 +123,19 @@ class CrawlImmowelt(Crawler):
             price_float = float(re.sub("[. €]", "", price).strip())
             size_float = float(re.sub(" m²", "", size).strip())
             sqm_price = round(price_float / size_float)
-            sqm_price_ref_address, ref_address = crawl_ref_sqm_price(address) if address is not "" else (-1, "")
-            sqm_price_times_ref_sqm_price = round(sqm_price / sqm_price_ref_address, 3)
+
+            # only crawl for reference sqm price if id has not yet been processed as the crawling takes a lot of time.
+            # due to only unprocessed ids being added to the database, setting dummy values does not replace the values
+            # that are already in the exposes db
+            if self.is_processed(processed_id):
+                (ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price) = self.qry_refs(processed_id)
+                logger.info(f"Found reference information for id {processed_id}. Skipping crawling for references.")
+            else:
+                sqm_price_ref_address, ref_address = crawl_ref_sqm_price(address) if address != "" else (-1, "")
+                if (sqm_price_ref_address, ref_address) == (-1, ""):
+                    sqm_price_times_ref_sqm_price = -1.0
+                else:
+                    sqm_price_times_ref_sqm_price = round(sqm_price / sqm_price_ref_address, 3)
 
             details = {
                 'id': processed_id,
