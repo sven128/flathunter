@@ -89,7 +89,9 @@ class CrawlEbayKleinanzeigen(Crawler):
                     class_="aditem-main--middle--price-shipping--price").text.strip()
                 price_float = float(re.sub("[ .€VB]", "", price).strip())
                 tags = expose_ids[idx].find_all(class_="simpletag tag-small")
-                address = expose_ids[idx].find("div", {"class": "aditem-main--top--left"})
+                url = "https://www.ebay-kleinanzeigen.de" + title_el.get("href")
+                address = self.load_address(url)
+                #address = expose_ids[idx].find("div", {"class": "aditem-main--top--left"})
                 image_element = expose_ids[idx].find("div", {"class": "galleryimage-element"})
             except AttributeError as error:
                 logger.warning("Unable to process eBay expose: %s", str(error))
@@ -100,9 +102,13 @@ class CrawlEbayKleinanzeigen(Crawler):
             else:
                 image = None
 
-            address = address.text.strip()
-            address = address.replace('\n', ' ').replace('\r', '')
-            address = " ".join(address.split())
+
+
+
+            # original
+            # address = address.text.strip()
+            # address = address.replace('\n', ' ').replace('\r', '')
+            # address = " ".join(address.split())
 
             try:
                 rooms = re.match(r'(\d+)', tags[1].text)[1]
@@ -121,6 +127,7 @@ class CrawlEbayKleinanzeigen(Crawler):
             # due to only unprocessed ids being added to the database, setting dummy values does not replace the values
             # that are already in the exposes db
             id_str = expose_ids[idx].get("data-adid")
+            #logger.info(f'{id_str=}, {type(id_str)}')
             if self.is_processed(id_str):
                 (ref_address, sqm_price_ref_address, sqm_price_times_ref_sqm_price) = self.qry_refs(id_str)
                 logger.info(f"Found reference information for id {id_str}. Skipping crawling for references.")
@@ -132,9 +139,9 @@ class CrawlEbayKleinanzeigen(Crawler):
                     sqm_price_times_ref_sqm_price = round(sqm_price / sqm_price_ref_address, 3)
 
             details = {
-                'id': expose_ids[idx].get("data-adid"),
+                'id': id_str,
                 'image': image,
-                'url': ("https://www.ebay-kleinanzeigen.de" + title_el.get("href")),
+                'url': url,
                 'title': title_el.text.strip(),
                 'price': price,
                 'price_float': price_float,
@@ -154,7 +161,7 @@ class CrawlEbayKleinanzeigen(Crawler):
 
         return entries
 
-    def load_address(self, url):
+    def load_address(self, url) -> str:
         """Extract address from expose itself"""
         expose_soup = self.get_page(url)
         try:
@@ -167,4 +174,4 @@ class CrawlEbayKleinanzeigen(Crawler):
             address_raw = ""
         address = address_raw.strip().replace("\n", "") + " " + street_raw.strip()
 
-        return address
+        return address.strip()
