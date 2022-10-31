@@ -62,13 +62,13 @@ def crawl_ref_sqm_price(address: str):
             ).text.strip()
         except Exception as e:
             logger.error(msg=f"{e}\n | Address is: '{address}'")
-            sqm_price, reference_address = -1.0, ""
+            sqm_price, reference_address = -1.0, "N/A"
     except AttributeError as e:
         logger.error(msg=f"{e}\n | Address is: '{address}'")
-        sqm_price, reference_address = -1.0, ""
+        sqm_price, reference_address = -1.0, "N/A"
     except ElementClickInterceptedException as e:
         logger.error(msg=f"{e}\n | Address is: '{address}'")
-        sqm_price, reference_address = -1.0, ""
+        sqm_price, reference_address = -1.0, "N/A"
     finally:
         driver.quit()
 
