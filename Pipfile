@@ -29,6 +29,7 @@ webdriver-manager = "*"
 apprise = "*"
 python-dotenv = "*"
 undetected-chromedriver = "*"
+gspread = "*"
 
 [dev-packages]
 
