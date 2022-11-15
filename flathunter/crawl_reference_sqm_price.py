@@ -1,8 +1,9 @@
 import re
 import time
+import os
 
-from selenium.webdriver import Firefox
-from selenium.webdriver.firefox.options import Options
+#import undetected_chromedriver.v2 as uc
+from selenium.webdriver import Firefox, FirefoxOptions
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support.wait import WebDriverWait
 import selenium.webdriver.support.expected_conditions as EC
@@ -18,9 +19,10 @@ def crawl_ref_sqm_price(address: str):
     address = re.sub("^Alt ", "Alt-", address)
     multi = 1.5
     # get reference sqm price for given address
-    opts = Options()
+    #opts = uc.ChromeOptions()  # pylint: disable=no-member
+    opts = FirefoxOptions()
     opts.headless = True
-    driver = Firefox(service=Service(executable_path=r'/home/sven/git_repos/flathunter/geckodriver'), options=opts)
+    driver = Firefox(executable_path=os.path.join(os.getcwd(), 'geckodriver'), options=opts)
     driver.get('https://www.immowelt.de/immobilienpreise/deutschland/wohnungspreise')
     # hard coded wait for the consent popup to appear
     # popup cannot be properly integrated in webdriver wait because it is inside a shadow-root
@@ -33,6 +35,7 @@ def crawl_ref_sqm_price(address: str):
         ).click()  # consent-to-all/click OK-button on privacy popup
         WebDriverWait(driver, 10 * multi).until(EC.presence_of_element_located((By.ID, "addressSearch")))
         input_address = driver.find_element(by=By.CSS_SELECTOR, value="#addressSearch")
+        input_address.clear()
         input_address.send_keys(address)
         WebDriverWait(driver, 10 * multi).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="dropdownMenuContainer"]'))
@@ -73,3 +76,6 @@ def crawl_ref_sqm_price(address: str):
         driver.quit()
 
     return sqm_price, reference_address
+
+if __name__  == "__main__":
+    crawl_ref_sqm_price("Hermannstr. 224 12049")

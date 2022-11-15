@@ -3,7 +3,11 @@ import threading
 import sqlite3 as lite
 import datetime
 import json
+import time
 
+import gspread.exceptions
+
+from flathunter.gsheets_connector import append_to_google_sheet
 from flathunter.logging import logger
 from flathunter.abstract_processor import Processor
 
@@ -97,6 +101,31 @@ class IdMaintainer:
 
     def save_expose(self, expose):
         """Saves an expose to a database"""
+        now = datetime.datetime.now()
+
+        append_to_g = [
+            int(expose['id']),
+            now.strftime('%Y-%m-%d %H:%M:%S'),
+            expose['crawler'],
+            expose['title'],
+            expose['url'],
+            expose['image'],
+            expose['price_float'],
+            expose['size_float'],
+            expose['address'],
+            expose['sqm_price'],
+            expose['sqm_price_ref_address'],
+            expose['ref_address'],
+            expose['sqm_price_times_ref_sqm_price'],
+        ]
+
+        try:
+            append_to_google_sheet(append_to_g)
+        except gspread.exceptions.APIError as e:
+            logger.info(f'{e}, wait 60 secs')
+            time.sleep(60)
+            append_to_google_sheet(append_to_g)
+
         cur = self.get_connection().cursor()
         cur.execute('''INSERT OR REPLACE INTO exposes(
                     id,
@@ -117,7 +146,7 @@ class IdMaintainer:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                     (
                         int(expose['id']),
-                        datetime.datetime.now(),
+                        now,
                         expose['crawler'],
                         expose['title'],
                         expose['url'],

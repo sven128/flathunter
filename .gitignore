@@ -104,5 +104,14 @@ config.yaml
 # Chromedriver / Webdriver Manager
 .wdm/
 
+# webdrivers
+chromedriver
+geckodriver
+
 # Pip requirements - should not be committed
 requirements.txt
+
+# credentials for google sheets service account
+flathunter-368110-21b2028eae29.json
+
+
