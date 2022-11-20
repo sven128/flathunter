@@ -103,28 +103,30 @@ class IdMaintainer:
         """Saves an expose to a database"""
         now = datetime.datetime.now()
 
-        append_to_g = [
-            int(expose['id']),
-            now.strftime('%Y-%m-%d %H:%M:%S'),
-            expose['crawler'],
-            expose['title'],
-            expose['url'],
-            expose['image'],
-            expose['price_float'],
-            expose['size_float'],
-            expose['address'],
-            expose['sqm_price'],
-            expose['sqm_price_ref_address'],
-            expose['ref_address'],
-            expose['sqm_price_times_ref_sqm_price'],
-        ]
+        if not self.is_processed(int(expose['id'])):
+            append_to_g = [
+                int(expose['id']),
+                now.strftime('%Y-%m-%d %H:%M:%S'),
+                expose['crawler'],
+                expose['title'],
+                expose['url'],
+                expose['image'],
+                expose['price_float'],
+                expose['size_float'],
+                expose['address'],
+                expose['sqm_price'],
+                expose['sqm_price_ref_address'],
+                expose['ref_address'],
+                expose['sqm_price_times_ref_sqm_price'],
+            ]
 
-        try:
-            append_to_google_sheet(append_to_g)
-        except gspread.exceptions.APIError as e:
-            logger.info(f'{e}, wait 60 secs')
-            time.sleep(60)
-            append_to_google_sheet(append_to_g)
+            try:
+                logger.info(f'Append expose to g sheet.')
+                append_to_google_sheet(append_to_g)
+            except gspread.exceptions.APIError as e:
+                logger.info(f'{e}, wait 60 secs until exposes will be added to g sheet.')
+                time.sleep(60)
+                append_to_google_sheet(append_to_g)
 
         cur = self.get_connection().cursor()
         cur.execute('''INSERT OR REPLACE INTO exposes(
