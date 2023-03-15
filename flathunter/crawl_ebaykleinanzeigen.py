@@ -64,7 +64,6 @@ class CrawlEbayKleinanzeigen(Crawler):
                 lambda tag: tag.name == "li" and (tag.get("class") == ["addetailslist--detail"]
                                                   or tag.get("class") == ["addetailslist--detail--value"])
         ):
-
             if re.match(r'Verfügbar ab', detail.text):
                 date_string = re.match(r'(\w+) (\d{4})', detail.text)
                 if date_string is not None:
