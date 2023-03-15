@@ -54,8 +54,7 @@ class Crawler:
         chrome_options = uc.ChromeOptions() # pylint: disable=no-member
         if driver_arguments is not None:
             for driver_argument in driver_arguments:
-                chrome_options.add_argument(driver_argument)
-                chrome_options.add_argument('--no-sandbox')
+	                chrome_options.add_argument(driver_argument)
 
         driver = uc.Chrome(options=chrome_options) # pylint: disable=no-member
 

@@ -273,7 +273,7 @@ class CaptchaEnvironmentConfig():
         if Env.FLATHUNTER_HEADLESS_BROWSER is not None:
             return [
                 "--no-sandbox",
-                "--headless",
+                "--headless=new",
                 "--disable-gpu",
                 "--remote-debugging-port=9222",
                 "--disable-dev-shm-usage",
